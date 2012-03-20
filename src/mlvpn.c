@@ -1180,13 +1180,13 @@ int main(int argc, char **argv)
     priv_init(cfgfilename, argv, "mlvpn");
     
     mlvpn_config(cfgfilename);
-    priv_config_parse_done();
 
     /* tun/tap initialization */
     memset(&tuntap, 0, sizeof(tuntap));
     snprintf(tuntap.devname, IFNAMSIZ, "%s", tundevname);
     tuntap.mtu = 1500;
     ret = mlvpn_tuntap_alloc();
+    priv_config_parse_done();
     if (ret <= 0)
     {
         _ERROR("Unable to create tunnel device.\n");
