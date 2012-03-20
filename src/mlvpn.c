@@ -1183,7 +1183,7 @@ int main(int argc, char **argv)
 
     /* tun/tap initialization */
     memset(&tuntap, 0, sizeof(tuntap));
-    snprintf(tuntap.devname, IFNAMSIZ, "%s", tundevname);
+    snprintf(tuntap.devname, MLVPN_IFNAMSIZ, "%s", tundevname);
     tuntap.mtu = 1500;
     ret = mlvpn_tuntap_alloc();
     priv_config_parse_done();

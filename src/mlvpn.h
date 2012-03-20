@@ -35,7 +35,7 @@ struct tuntap_s
 {
     int fd;
     int mtu;
-    char devname[IFNAMSIZ];
+    char devname[MLVPN_IFNAMSIZ];
 };
 
 
