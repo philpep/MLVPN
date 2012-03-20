@@ -104,10 +104,10 @@ enum {
     MLVPN_CHAP_AUTHOK
 };
 
-enum {
+typedef enum {
     MLVPN_TUNTAPMODE_TUN,
     MLVPN_TUNTAPMODE_TAP
-};
+} tuntapmode_t;
 
 int mlvpn_config(char *filename);
 void init_buffers();

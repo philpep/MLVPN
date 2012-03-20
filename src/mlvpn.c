@@ -39,6 +39,7 @@ static char *progname;
 static char *tundevname = NULL;
 static char *status_command = NULL;
 static char *mlvpn_password = {0};
+static tuntapmode_t mlvpn_tuntap_mode = MLVPN_TUNTAPMODE_TUN;
 
 /* Triggered by signal if sigint is raised */
 static int global_exit = 0;
@@ -617,9 +618,9 @@ int mlvpn_tuntap_alloc()
 {
     int fd;
 
-    if ((fd = priv_open_tun(MLVPN_TUNTAPMODE_TUN, tuntap.devname)) < 0 )
+    if ((fd = priv_open_tun(mlvpn_tuntap_mode, tuntap.devname)) < 0 )
     {
-        _ERROR("Unable to open /dev/net/tun RW. Check permissions.\n");
+        _ERROR("Unable to open tuntap RW. Check permissions.\n");
         return fd;
     }
     tuntap.fd = fd;
@@ -1015,6 +1016,7 @@ int mlvpn_config(char *filename)
             if (mystr_eq(lastSection, "general"))
             {
                 char *mode;
+                char *tuntap_mode;
 
                 _conf_set_str_from_conf(config, lastSection,
                     "statuscommand", &status_command, NULL, NULL, 0);
@@ -1043,7 +1045,11 @@ int mlvpn_config(char *filename)
                 _conf_set_str_from_conf(config, lastSection,
                     "password", &mlvpn_password, NULL, 
                     "Password is mandatory.", 1);
+                _conf_set_str_from_conf(config, lastSection,
+                    "dev", &tuntap_mode, "tun", NULL, 0);
 
+                if (mystr_eq(tuntap_mode, "tap"))
+                    mlvpn_tuntap_mode = MLVPN_TUNTAPMODE_TAP;
                 if (mystr_eq(mode, "server"))
                     server_mode = 1;
             } else {
@@ -1192,7 +1198,9 @@ int main(int argc, char **argv)
         _ERROR("Unable to create tunnel device.\n");
         return 1;
     } else {
-        _INFO("Created tap interface %s\n", tuntap.devname);
+        _INFO("Created %s interface %s\n",
+                (mlvpn_tuntap_mode == MLVPN_TUNTAPMODE_TUN) ? "tun" : "tap",
+                tuntap.devname);
     }
     
     init_buffers();
