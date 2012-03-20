@@ -2,9 +2,12 @@
 #define _MLVPN_H
 
 #include <stdint.h>
+#include <signal.h>
 #include <arpa/inet.h>
+#ifdef __linux__
 #include <linux/if_tun.h>
 #include <linux/if.h>
+#endif
 #include <stdio.h>
 
 #include "pkt.h"
@@ -29,7 +32,14 @@
 #define MAXTUNNELS 128
 
 /* tuntap interface name size */
+#ifdef __linux__
 #define MLVPN_IFNAMSIZ IFNAMSIZ
+#define MLVPN_NSIG _NSIG
+#elif __FreeBSD__
+#define MLVPN_IFNAMSIZ 64
+#define MLVPN_NSIG _SIG_MAXSIG
+#endif
+
 
 struct tuntap_s
 {

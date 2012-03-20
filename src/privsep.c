@@ -23,6 +23,11 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __FreeBSD__
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <net/if_tun.h>
+#endif
 #include <sys/stat.h>
 #include <netdb.h>
 #include <err.h>
@@ -80,7 +85,7 @@ static char allowed_logfile[MAXPATHLEN];
 
 static void root_check_log_name(char *, size_t);
 static int root_open_file(char *, int);
-int root_linux_open_tun(int tuntapmode, char *devname);
+int root_open_tun(int tuntapmode, char *devname);
 static int root_launch_script(char *, int, char **);
 static void increase_state(int);
 static void sig_got_chld(int);
@@ -114,7 +119,7 @@ priv_init(char *conf, char *argv[], char *username)
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     sa.sa_handler = SIG_DFL;
-    for (i = 1; i < _NSIG; i++)
+    for (i = 1; i < MLVPN_NSIG; i++)
         sigaction(i, &sa, NULL);
 
     /* Create sockets */
@@ -237,7 +242,7 @@ priv_init(char *conf, char *argv[], char *username)
                 tuntapname[0] = '\0';
             }
 
-            fd = root_linux_open_tun(tuntapmode, tuntapname);
+            fd = root_open_tun(tuntapmode, tuntapname);
             if (fd < 0)
             {
                 must_write(socks[0], &fd, sizeof(fd));
@@ -561,13 +566,14 @@ int priv_open_tun(int tuntapmode, char *devname)
     return fd;
 }
 
-/* Really open the tun device.
- * returns tun file descriptor.
+/* Really open the tun/tap device.
+ * returns tun/tap file descriptor.
  *
- * Compatibility: Linux 2.4+
+ * Compatibility: Linux 2.4+, FreeBSD
  * Scope: private
  */
-int root_linux_open_tun(int tuntapmode, char *devname)
+#ifdef __linux__
+int root_open_tun(int tuntapmode, char *devname)
 {
     struct ifreq ifr;
     int fd;
@@ -599,6 +605,35 @@ int root_linux_open_tun(int tuntapmode, char *devname)
    }
    return fd;
 }
+#elif __FreeBSD__
+int root_open_tun(int tuntapmode, char *devname)
+{
+    int i;
+    int fd = -1;
+    char ifname[MLVPN_IFNAMSIZ];
+    char ifpath[MLVPN_IFNAMSIZ+5];
+    for (i = 0; i < 256; i++) {
+        snprintf(ifname, sizeof(ifname), "%s%d",
+                (tuntapmode == MLVPN_TUNTAPMODE_TUN) ? "tun" : "tap",
+                i);
+        snprintf(ifpath, sizeof(ifpath), "/dev/%s", ifname);
+        if ((fd = open(ifpath, O_RDWR)) > 0)
+            strncpy(devname, ifname, MLVPN_IFNAMSIZ);
+            break;
+    }
+    if (fd >= 0 && tuntapmode == MLVPN_TUNTAPMODE_TUN) {
+        i = IFF_POINTOPOINT | IFF_MULTICAST;
+        if (ioctl(fd, TUNSIFMODE, &i) < 0) {
+            warn("ioctl(TUNSIFMODE)");
+        }
+        i = 1;
+        if (ioctl(fd, TUNSIFHEAD, &i) < 0) {
+            warn("ioctl(TUNSIFHEAD)");
+        }
+    }
+    return fd;
+}
+#endif
 
 /* Name/service to address translation.  Response is placed into addr, and
  * the length is returned (zero on error) */
